@@ -1,47 +1,41 @@
-# Import the necessary libraries
-import praw
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
+# Import the necessary libraries and dependencies
 import streamlit as st
-import statistics
+from twitter import Twitter, OAuth
+from sklearn.linear_model import LogisticRegression
 
-# Connect to the Reddit API
-reddit = praw.Reddit(client_id="your_client_id",
-                     client_secret="your_client_secret",
-                     user_agent="your_user_agent")
+# Set the API credentials and authenticate with the Twitter API
+API_KEY = '<your_api_key>'
+API_SECRET = '<your_api_secret>'
+ACCESS_TOKEN = '<your_access_token>'
+ACCESS_SECRET = '<your_access_secret>'
 
-# Create a SentimentIntensityAnalyzer instance
-analyzer = SentimentIntensityAnalyzer()
+auth = OAuth(ACCESS_TOKEN, ACCESS_SECRET, API_KEY, API_SECRET)
+twitter = Twitter(auth=auth)
 
-# Retrieve the posts from the subreddit
-subreddit = reddit.subreddit("subreddit_name")
-posts = subreddit.new(limit=100)
+# Retrieve the tweets from the specified accounts and time period
+accounts = ['<account_1>', '<account_2>', ...]
+start_date = '<start_date>'
+end_date = '<end_date>'
 
-# Analyze the sentiment of each post
-scores = []
-for post in posts:
-    # Use the analyzer.polarity_scores() method to get the sentiment scores for the post text
-    scores.append(analyzer.polarity_scores(post.title + post.selftext))
+tweets = []
+for account in accounts:
+    query = twitter.search.tweets(q=account, since=start_date, until=end_date)
+    tweets.extend(query['statuses'])
 
-# Calculate the average sentiment scores
-positive_scores = [s["pos"] for s in scores]
-negative_scores = [s["neg"] for s in scores]
-neutral_scores = [s["neu"] for s in scores]
-compound_scores = [s["compound"] for s in scores]
+# Process the tweets and perform the sentiment analysis
+X = [tweet['text'] for tweet in tweets]
+y = [1 if tweet['favorite_count'] > 0 else 0 for tweet in tweets]
 
-avg_positive = statistics.mean(positive_scores)
-avg_negative = statistics.mean(negative_scores)
-avg_neutral = statistics.mean(neutral_scores)
-avg_compound = statistics.mean(compound_scores)
+model = LogisticRegression()
+model.fit(X, y)
 
-# Create the user interface using streamlit
-st.title("Sentiment Analysis of r/subreddit_name")
+# Use Streamlit to create the user interface and display the results
+st.title('Twitter Sentiment Analysis')
 
-# Create a sidebar with sliders for each sentiment category
-st.sidebar.title("Sentiment Categories")
+st.write('Number of tweets:', len(tweets))
+st.write('Number of positive tweets:', sum(y))
+st.write('Number of negative tweets:', len(y) - sum(y))
 
-positive = st.sidebar.slider("Positive", 0.0, 1.0, avg_positive)
-negative = st.sidebar.slider("Negative", 0.0, 1.0, avg_negative)
-neutral = st.sidebar.slider("Neutral", 0.0, 1.0, avg_neutral)
-compound = st.sidebar
+st.line_chart(y)
+
 
